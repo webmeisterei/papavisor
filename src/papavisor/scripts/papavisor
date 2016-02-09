@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+from __future__ import print_function
+
+import asyncio
+import copy
+import glob
+import json
+import os.path
+import re
+import sys
+from collections import OrderedDict
+import configparser
+
+from papavisor.aioxmlrpc_client import AioTransport, ProtocolError, ServerProxy
+
+STATUS_REGEX = re.compile('^([\w]+)\s+([\w]+)')
+
+
+def merge(a, b, path=None):
+    """merges b into a
+    http://stackoverflow.com/questions/7204805/dictionaries-of-dictionaries-merge
+    """
+    if path is None:
+        path = []
+
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass  # same leaf value
+            else:
+                a[key] = b[key]
+                # raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+        else:
+            a[key] = b[key]
+    return a
+
+
+class SupervisorCtl(object):
+
+    def __init__(self, config):
+        self._name = config['name']
+        self._rpc = ServerProxy(
+            config['url'],
+            AioTransport(
+                use_https=False,
+                username=config['user'],
+                password=config['password']
+            )
+        )
+        self._rpcns = getattr(self._rpc, 'supervisor')
+
+        self._config = config
+        self._groups = {}
+        self._services = {}
+
+    @asyncio.coroutine
+    def _get_status(self):
+        status = yield from self._rpcns.getAllProcessInfo()
+
+        services = {}
+        for p in status:
+            services[p['name']] = p
+
+        self._services = services
+        programs = self._config['programs']
+
+        if not self._groups:
+            groups = {}
+            for pn, pstatus in services.items():
+                if pn not in programs:
+                    print(
+                        "%s\tERROR: Unknown service name %r" % (
+                            self._name, pn
+                        ),
+                        file=sys.stderr
+                    )
+                    continue
+
+                sdefs = programs[pn]
+                for sgroup in sdefs['groups']:
+                    if sgroup not in groups:
+                        groups[sgroup] = {}
+
+                    groups[sgroup][pn] = {
+                        'type': sdefs['type'],
+                        'priority': sdefs['priority'],
+                        'status': pstatus['statename'],
+                        'uptime': pstatus['description'],
+                        'startsecs': sdefs.get('startsecs', 0),
+                    }
+
+            for k, g in groups.items():
+                self._groups[k] = OrderedDict(
+                    sorted(g.items(), key=lambda p: p[1]['priority'])
+                )
+
+        else:
+            for sn, ss in services.items():
+                for group in self._groups.items():
+                    if sn in group:
+                        group['status'] = ss
+
+    def close(self):
+        if self._rpc is not None:
+            self._rpc.close()
+
+    @asyncio.coroutine
+    def stop(self, group):
+        """Stop the given group name. """
+        yield from self._get_status()
+
+        if group not in self._groups:
+            raise ValueError("Unknown group %r" % group)
+
+        print("Stop group %r from project %r:" % (group, self._name))
+        for p in self._groups[group]:
+            status = self._groups[group][p]['status']
+            if status == 'RUNNING' or status == 'STARTING':
+                print("%s\tstop\t%s" % (self._name, p))
+                yield from self._rpcns.stopProcess(p)
+
+    @asyncio.coroutine
+    def start(self, group):
+        """Start the given group name. """
+        yield from self._get_status()
+
+        if group not in self._groups:
+            raise ValueError("Unknown group %r" % group)
+
+        print("Start group %r from project %r:" % (group, self._name))
+        for p in self._groups[group]:
+            status = self._groups[group][p]['status']
+            if status == 'STOPPED' or status == 'STOPPING':
+                print("%s\tstart\t%s" % (self._name, p))
+                yield from self._rpcns.startProcess(p)
+
+    @asyncio.coroutine
+    def restart(self, group):
+        """Restart the given group name."""
+        yield from self._get_status()
+
+        if group not in self._groups:
+            raise ValueError("Unknown group %r" % group)
+
+        # check which services are running and select them
+        # for a restart.
+        print("Restart group %r from project %r:" % (group, self._name))
+
+        to_restart = []
+        for p, pdata in self._groups[group].items():
+            if pdata['status'].lower() == 'running':
+                to_restart.append(p)
+
+        # Stop selected services
+        for p in to_restart:
+            print("%s\tstop\t%s" % (self._name, p))
+            yield from self._rpcns.stopProcess(p)
+
+        # and start them in reversed order again.
+        for p in reversed(to_restart):
+            print("%s\tstart\t%s" % (self._name, p))
+            yield from self._rpcns.startProcess(p)
+            startsecs = self._groups[group][p]['startsecs']
+            if startsecs > 0:
+                print("%s\tsleep\t%d" % (self._name, startsecs))
+                yield from asyncio.sleep(startsecs)
+
+    @asyncio.coroutine
+    def status(self, group):
+        yield from self._get_status()
+
+        if group not in self._groups:
+            raise ValueError("Unknown group %r" % group)
+
+        for p in reversed(self._groups[group]):
+            pdata = self._groups[group][p]
+            print("%s\t%s\t%s\t%s" % (
+                self._name,
+                p + ' ' * (15 - len(p)),
+                pdata['status'],
+                pdata['uptime'])
+            )
+
+
+def parse_json_config(directory_path, config_object):
+    if not os.path.exists(directory_path):
+        return
+
+    cfg_files = glob.glob(directory_path + '/*.json')
+    for cfg_file in cfg_files:
+        with open(cfg_file, 'r') as fp:
+            try:
+                tmp_cfg = json.load(fp, object_pairs_hook=OrderedDict)
+            except ValueError:
+                print(cfg_file)
+                raise
+
+        merge(config_object, tmp_cfg)
+
+
+@asyncio.coroutine
+def _run_task_async(config, action='restart', group='python'):
+    sctl = SupervisorCtl(config)
+
+    try:
+        if action.lower() == 'restart':
+            yield from sctl.restart(group)
+
+        elif action.lower() == 'start':
+            yield from sctl.start(group)
+
+        elif action.lower() == 'stop':
+            yield from sctl.stop(group)
+
+        elif action.lower() == 'status':
+            yield from sctl.status(group)
+
+    except ProtocolError:
+        print('ERROR: %r can\'t connect.' % (
+            config['name']
+        ))
+    finally:
+        sctl.close()
+
+
+def main(argv):
+    config_path = '/etc/papavisor'
+
+    if not os.path.exists(config_path):
+        config_path = os.path.join(
+            os.path.dirname(__file__),
+            os.path.pardir,
+            os.path.pardir,
+            os.path.pardir,
+            'config'
+        )
+
+    config = OrderedDict()
+    parse_json_config(config_path, config)
+
+    service_defaults = config['__defaults__']
+    del config['__defaults__']
+
+    # env CONFIG_FILES for apapavisor
+    if 'CONFIG_FILES' in os.environ:  # and os.environ['CONFIG_FILES']:
+        files = os.environ['CONFIG_FILES'].rstrip(';').split(';')
+        try:
+            d = OrderedDict(
+                [f.split(':') for f in files]
+            )
+            for name, cfgfile in d.items():
+                if name in config:
+                    # Do not overwrite a manual configured entry.
+                    continue
+
+                parser = configparser.ConfigParser()
+                parser.read(cfgfile)
+                cfg_opts = {
+                    'url': parser['supervisorctl']['serverurl'],
+                    'user': parser['supervisorctl']['username'],
+                    'password': parser['supervisorctl']['password']
+                }
+
+                config[name] = cfg_opts
+        except ValueError:
+            print(
+                "ERROR: Wrong input form apapavisor: %r" % (
+                    os.environ['CONFIG_FILES'],
+                ),
+                file=sys.stderr
+            )
+
+    to_run = config  # default all projects
+    if len(sys.argv) > 1 and sys.argv[1].lower() != 'all':
+        projects = sys.argv[1].lower()
+        to_run = {}
+        for k in config.keys():
+            if k.startswith(projects):
+                to_run[k] = config[k]
+
+    if not to_run:
+        return True
+
+    action = 'status'  # default run status
+    if len(sys.argv) > 1 and sys.argv[2].lower() != action:
+        action = sys.argv[2].lower()
+
+    group = 'all'  # default "group" all
+    if len(sys.argv) > 3 and sys.argv[3].lower() != group:
+        group = sys.argv[3].lower()
+
+    # print('Running action %r on group %r' % (action, group))
+
+    tasks = []
+    for sname, sconfig in to_run.items():
+
+        local_config = copy.deepcopy(service_defaults)
+        merge(local_config, sconfig)
+
+        if 'types' in local_config:
+            for tk, tv in local_config['types'].items():
+                for pk, pv in local_config['programs'].items():
+                    if pv['type'] == tk:
+                        for tvk, tvv in tv.items():
+                            pv[tvk] = tvv
+
+            del(local_config['types'])
+
+        local_config['name'] = sname
+        tasks.append(asyncio.async(
+            _run_task_async(local_config, action, group)
+        ))
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.wait(tasks))
+    loop.stop()
+
+
+if __name__ == '__main__':
+    main(sys.argv)

@@ -1,0 +1,16 @@
+{
+    "--template--": {
+        "url": "http://127.0.0.1:9002/RPC2",
+        "types": {
+            "instance": {
+                "startsecs": 10
+            }
+        },
+
+        "programs": {
+            "instance2": {
+                "startsecs": 30
+            }
+        }
+    }
+}

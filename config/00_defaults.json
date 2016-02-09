@@ -1,0 +1,81 @@
+{
+    "__defaults__": {
+        "user": "admin",
+        "password": "admin",
+        "url": "http://127.0.0.1:9062/RPC2",
+
+        "programs": {
+            "MemmonZope1": {
+                "type": "memmon",
+                "groups": ["zope1", "all"],
+                "priority": 1
+            },
+            "MemmonZope2": {
+                "type": "memmon",
+                "groups": ["zope2", "all"],
+                "priority": 1
+            },
+            "MemmonZope3": {
+                "type": "memmon",
+                "groups": ["zope3", "all"],
+                "priority": 1
+            },
+            "MemmonZope4": {
+                "type": "memmon",
+                "groups": ["zope4", "all"],
+                "priority": 1
+            },
+            "instance": {
+                "type": "instance",
+                "groups": ["zope1", "zopes", "python", "all"],
+                "priority": 11
+            },
+            "instance1": {
+                "type": "instance",
+                "groups": ["zope1", "zopes", "python", "all"],
+                "priority": 12
+            },
+            "instance2": {
+                "type": "instance",
+                "groups": ["zope2", "zopes", "python", "all"],
+                "priority": 13
+            },
+            "instance3": {
+                "type": "instance",
+                "groups": ["zope3", "zopes", "python", "all"],
+                "priority": 14
+            },
+            "instance4": {
+                "type": "instance",
+                "groups": ["zope4", "zopes", "python", "all"],
+                "priority": 15
+            },
+            "balancer": {
+                "type": "haproxy",
+                "groups": ["general", "all"],
+                "priority": 20
+            },
+            "cache": {
+                "type": "varnish",
+                "groups": ["general", "all"],
+                "priority": 21
+            },
+            "main": {
+                "type": "nginx",
+                "groups": ["general", "all"],
+                "priority": 22
+            },
+            "transform": {
+                "type": "nginx",
+                "groups": ["general", "all"],
+                "priority": 23
+            },
+            "zeo": {
+                "type": "zeo",
+                "groups": ["python", "all"],
+                "priority": 19,
+                "startsecs": 10
+            }
+        }
+    }
+}

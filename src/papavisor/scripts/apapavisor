@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Automatic papavisor
+#
+# Searches for supervisord.conf files and passes them
+# to papavisor.
+#
+
+source /etc/papavisor/apapavisor.sh
+
+count=${#SEARCH_CFG[*]}
+index=0
+
+result=""
+while [ "$index" -lt "$count" ]; do
+    cfg_files=$(ls -1 ${SEARCH_CFG[$index]} 2>/dev/null| xargs)
+    for cfg_file in ${cfg_files[@]}; do
+        name=$(echo "${cfg_file}" | sed -e "${NAME_SED[$index]}")
+        result="${result}${name}:${cfg_file};"
+    done
+
+    let "index = $index + 1"
+done
+
+CONFIG_FILES="$result" ${PAPAVISOR} $@
