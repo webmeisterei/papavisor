@@ -45,19 +45,23 @@ setup(
     ],
     keywords="papavisor supervisor supervisord",
     long_description=(
-        read("README.rst") + "\n\n"
-+        read("CHANGES.rst")
+        read("README.rst") + "\n\n" +
+        read("CHANGES.rst")
     ),
 
     install_requires=[
         'aiohttp',
         'setuptools',
+        'texttable',
+        'psutil',
     ],
     extras_require={
     },
     include_package_data=True,
     zip_safe=False,
-    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=find_packages(
+        exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
+    ),
     package_dir={'': 'src'},
     scripts=[
         'src/papavisor/scripts/papavisor',

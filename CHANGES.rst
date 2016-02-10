@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Add texttable for the status output and psutil for memory info.
+  [pcdummy]
+
 - Link pypi, cleanup main().
   [pcdummy]
 
