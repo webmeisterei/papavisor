@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.1a3 (unreleased)
+0.0.1a3 (2016-02-11)
 --------------------
 
 - Fix apapvisor config path detection.

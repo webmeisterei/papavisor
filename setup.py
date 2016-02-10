@@ -21,9 +21,9 @@ def read(*rnames):
 
 setup(
     name="papavisor",
-    version='0.0.1a3.dev0',
+    version='0.0.1a3',
     author="Webmeisterei GmbH",
-    maintainer="Rene´ Jochum",
+    maintainer="ReneÂ´ Jochum",
     maintainer_email="rene@webmeisterei.com",
     author_email="rene@webmeisterei.com",
     url="https://github.com/webmeisterei/papavisor",
