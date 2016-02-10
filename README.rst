@@ -14,7 +14,7 @@ With papavisor you can:
 Requirements
 ============
 
-- *nix System
+- Unix like System
 - Python >3.4.0
 
 Install

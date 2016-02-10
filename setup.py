@@ -4,8 +4,6 @@
 import os
 from setuptools import setup
 
-VERSION = "0.0.1.dev0"
-
 # The choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
 # Development Status :: 4 - Beta
@@ -20,10 +18,11 @@ def read(*rnames):
 
 setup(
     name="papavisor",
-    version=VERSION,
+    version="0.0.1.dev0",
     author="Webmeisterei GmbH",
     maintainer="Rene´ Jochum",
     maintainer_email="rene@webmeisterei.com",
+    author_email="rene@webmeisterei.com",
     url="https://github.com/webmeisterei/papavisor",
     license="MIT",
     platforms=["any"],
@@ -41,6 +40,7 @@ setup(
         'Topic :: System :: Monitoring',
         'Topic :: System :: Systems Administration',
     ],
+    keywords="papavisor supervisor supervisord",
     long_description=(
         read("README.rst") + "\n\n" +
         "Changelog\n" +
