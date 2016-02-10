@@ -24,17 +24,23 @@ setup(
     author="Webmeisterei GmbH",
     maintainer="Rene´ Jochum",
     maintainer_email="rene@webmeisterei.com",
-    url="http://github.com/webmeisterei/papavisor",
+    url="https://github.com/webmeisterei/papavisor",
     license="MIT",
     platforms=["any"],
     description=doclines[0],
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Natural Language :: English',
-        'Operating System :: OS Independent'],
+        'Operating System :: POSIX',
+        'Topic :: System :: Boot',
+        'Topic :: System :: Monitoring',
+        'Topic :: System :: Systems Administration',
+    ],
     long_description=(
         read("README.rst") + "\n\n" +
         "Changelog\n" +

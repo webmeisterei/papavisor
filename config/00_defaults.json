@@ -1,54 +1,74 @@
 {
+    "__defaults__": "Defaults is special, its the base for all 'projects'",
     "__defaults__": {
         "user": "admin",
         "password": "admin",
         "url": "http://127.0.0.1:9062/RPC2",
 
+        "groups": {
+            "zopes": {
+                "ensure_one_running": "This ensures that one program of the same type is always running on `restart`.",
+                "ensure_one_running": true
+            }
+        },
+
+        "types": "Sets options for all programs of this type.",
+        "types": {
+            "instance": {
+                "startsecs": 10
+            }
+        },
+
+        "programs": "The per supervisor program defaults.",
         "programs": {
+            "MemmonZope1": "The program name as defined in supervisord.conf",
             "MemmonZope1": {
+                "type": "A type classifier for 'ensure_one_running'",
                 "type": "memmon",
+                "groups": "A list of groups to assign this program to.",
                 "groups": ["zope1", "all"],
+                "priority": "Lowest get stopped first and will be started first.",
                 "priority": 1
             },
             "MemmonZope2": {
                 "type": "memmon",
                 "groups": ["zope2", "all"],
-                "priority": 1
+                "priority": 3
             },
             "MemmonZope3": {
                 "type": "memmon",
                 "groups": ["zope3", "all"],
-                "priority": 1
+                "priority": 5
             },
             "MemmonZope4": {
                 "type": "memmon",
                 "groups": ["zope4", "all"],
-                "priority": 1
+                "priority": 7
             },
             "instance": {
                 "type": "instance",
                 "groups": ["zope1", "zopes", "python", "all"],
-                "priority": 11
+                "priority": 2
             },
             "instance1": {
                 "type": "instance",
                 "groups": ["zope1", "zopes", "python", "all"],
-                "priority": 12
+                "priority": 2
             },
             "instance2": {
                 "type": "instance",
                 "groups": ["zope2", "zopes", "python", "all"],
-                "priority": 13
+                "priority": 4
             },
             "instance3": {
                 "type": "instance",
                 "groups": ["zope3", "zopes", "python", "all"],
-                "priority": 14
+                "priority": 6
             },
             "instance4": {
                 "type": "instance",
                 "groups": ["zope4", "zopes", "python", "all"],
-                "priority": 15
+                "priority": 8
             },
             "balancer": {
                 "type": "haproxy",

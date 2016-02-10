@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 XML-RPC Client with asyncio.
 This module adapt the ``xmlrpc.client`` module of the standard library to

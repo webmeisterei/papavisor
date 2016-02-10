@@ -1,12 +1,18 @@
 {
+    "--template--": "This is the project name,",
+    "--template--": "papavisor copies the defaults and overwrites them with the settings here.",
     "--template--": {
+        "url": "Obviously overwrite the url from the defaults",
         "url": "http://127.0.0.1:9002/RPC2",
+
+        "types": "As example set startsecs for all instances to 10 secs.",
         "types": {
             "instance": {
                 "startsecs": 10
             }
         },
 
+        "programs": "For whatever reason instance2 is slow so set its startsecs to 30 secs.",
         "programs": {
             "instance2": {
                 "startsecs": 30
