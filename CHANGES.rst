@@ -1,10 +1,11 @@
-CHANGES
-=======
+Changelog
+=========
 
 0.0.1a2 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Fix "python3 setup.py develop".
+  [pcdummy]
 
 
 0.0.1a (2016-02-10)

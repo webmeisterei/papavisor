@@ -2,7 +2,8 @@
 """papavisor package."""
 
 import os
-from setuptools import setup
+
+from setuptools import find_packages, setup
 
 # The choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -42,10 +43,8 @@ setup(
     ],
     keywords="papavisor supervisor supervisord",
     long_description=(
-        read("README.rst") + "\n\n" +
-        "Changelog\n" +
-        "==============\n\n" +
-        read("CHANGES.rst")
+        read("README.rst") + "\n\n"
++        read("CHANGES.rst")
     ),
 
     install_requires=[
@@ -56,8 +55,8 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
-    packages=['papavisor'],
-    package_dir={'papavisor': 'src/papavisor'},
+    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    package_dir={'': 'src'},
     scripts=[
         'src/papavisor/scripts/papavisor',
         'src/papavisor/scripts/apapavisor',
