@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.1a2 (unreleased)
+0.0.1a2 (2016-02-10)
 --------------------
 
 - Fix package installation, move config to ~/.config.
