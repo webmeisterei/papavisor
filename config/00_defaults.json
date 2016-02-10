@@ -70,6 +70,12 @@
                 "groups": ["zope4", "zopes", "python", "all"],
                 "priority": 8
             },
+            "zeo": {
+                "type": "zeo",
+                "groups": ["python", "all"],
+                "priority": 19,
+                "startsecs": 10
+            },
             "balancer": {
                 "type": "haproxy",
                 "groups": ["general", "all"],
@@ -90,11 +96,15 @@
                 "groups": ["general", "all"],
                 "priority": 23
             },
-            "zeo": {
-                "type": "zeo",
-                "groups": ["python", "all"],
-                "priority": 19,
-                "startsecs": 10
+            "celery": {
+                "type": "celery",
+                "groups": ["general", "all"],
+                "priority": 23
+            },
+            "solr": {
+                "type": "solr",
+                "groups": ["general", "all"],
+                "priority": 24
             }
         }
     }

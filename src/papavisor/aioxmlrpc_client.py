@@ -50,7 +50,7 @@ class AioTransport(xmlrpc.Transport):
     user_agent = 'python/aioxmlrpc'
 
     def __init__(self, use_https, *, username=None, password=None,
-                 use_datetime=False,
+                 uri=None, use_datetime=False,
                  use_builtin_types=False, loop=None):
         super().__init__(use_datetime, use_builtin_types)
         self._loop = loop or asyncio.get_event_loop()
@@ -59,7 +59,14 @@ class AioTransport(xmlrpc.Transport):
         self._username = username
         self._password = password
         self._loop = loop
-        self._connector = aiohttp.TCPConnector(loop=self._loop)
+        if not uri:
+            self._connector = aiohttp.TCPConnector(loop=self._loop)
+        elif uri.startswith('unix://'):
+            self._connector = aiohttp.UnixConnector(
+                path=uri[7:], loop=self._loop
+            )
+        else:
+            self._connector = aiohttp.TCPConnector(loop=self._loop)
 
     @asyncio.coroutine
     def request(self, host, handler, request_body, verbose):
@@ -133,13 +140,21 @@ class ServerProxy(xmlrpc.ServerProxy):
     ``xmlrpc.ServerProxy`` subclass for asyncio support
     """
 
-    def __init__(self, uri, transport=None, encoding=None, verbose=False,
+    def __init__(self, uri, *, username=None, password=None,
+                 transport=None, encoding=None, verbose=False,
                  allow_none=False, use_datetime=False,use_builtin_types=False,
                  loop=None):
         self._loop = loop or asyncio.get_event_loop()
         if not transport:
-            transport = AioTransport(uri.startswith('https://'),
-                                     loop=self._loop)
+            transport = AioTransport(
+                uri.startswith('https://'),
+                uri=uri,
+                username=username,
+                password=password,
+                loop=self._loop)
+
+        if uri.startswith('unix://'):
+            uri = 'http://localhost'
         super().__init__(uri, transport, encoding, verbose, allow_none,
                          use_datetime, use_builtin_types)
 

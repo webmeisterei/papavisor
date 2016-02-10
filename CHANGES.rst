@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Added support for connecting to 'unix://' sockets.
+  [pcdummy]
+
 - Add an option 'enable' to disable projects.
   [pcdummy]
 

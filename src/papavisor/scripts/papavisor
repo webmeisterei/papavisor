@@ -45,14 +45,11 @@ class SupervisorCtl(object):
         try:
             self._rpc = ServerProxy(
                 config['url'],
-                AioTransport(
-                    use_https=False,
-                    username=config['user'],
-                    password=config['password']
-                )
+                username=config['user'],
+                password=config['password']
             )
-        except OSError:
-            raise OSError("On URL %r" % config['url'])
+        except OSError as e:
+            raise OSError("%s, on URL %r" % (e, config['url']))
 
         self._rpcns = getattr(self._rpc, 'supervisor')
 
@@ -228,27 +225,32 @@ def parse_json_config(directory_path, config_object):
 
 @asyncio.coroutine
 def _run_task_async(config, action='restart', group='python'):
-    sctl = SupervisorCtl(config)
-
+    sctl = None
     try:
-        if action.lower() == 'restart':
-            yield from sctl.restart(group)
+        sctl = SupervisorCtl(config)
+    except OSError as e:
+        print('ERROR: %s' % e)
 
-        elif action.lower() == 'start':
-            yield from sctl.start(group)
+    if sctl is not None:
+        try:
+            if action.lower() == 'restart':
+                yield from sctl.restart(group)
 
-        elif action.lower() == 'stop':
-            yield from sctl.stop(group)
+            elif action.lower() == 'start':
+                yield from sctl.start(group)
 
-        elif action.lower() == 'status':
-            yield from sctl.status(group)
+            elif action.lower() == 'stop':
+                yield from sctl.stop(group)
 
-    except ProtocolError:
-        print('ERROR: %r can\'t connect.' % (
-            config['name']
-        ))
-    finally:
-        sctl.close()
+            elif action.lower() == 'status':
+                yield from sctl.status(group)
+
+        except ProtocolError:
+            print('ERROR: %r can\'t connect.' % (
+                config['name']
+            ))
+        finally:
+            sctl.close()
 
 
 def main(argv):
