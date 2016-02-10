@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Add an option 'enable' to disable projects.
+  [pcdummy]
+
 - README.rst, papavisor is available over pip.
   [pcdummy]
 

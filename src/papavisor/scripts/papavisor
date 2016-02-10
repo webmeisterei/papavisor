@@ -42,14 +42,18 @@ class SupervisorCtl(object):
 
     def __init__(self, config):
         self._name = config['name']
-        self._rpc = ServerProxy(
-            config['url'],
-            AioTransport(
-                use_https=False,
-                username=config['user'],
-                password=config['password']
+        try:
+            self._rpc = ServerProxy(
+                config['url'],
+                AioTransport(
+                    use_https=False,
+                    username=config['user'],
+                    password=config['password']
+                )
             )
-        )
+        except OSError:
+            raise OSError("On URL %r" % config['url'])
+
         self._rpcns = getattr(self._rpc, 'supervisor')
 
         self._config = config
@@ -318,6 +322,9 @@ def main(argv):
 
     tasks = []
     for sname, sconfig in to_run.items():
+
+        if 'enabled' in sconfig and not sconfig['enabled']:
+            continue
 
         local_config = copy.deepcopy(service_defaults)
         merge(local_config, sconfig)

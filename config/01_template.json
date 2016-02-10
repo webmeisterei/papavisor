@@ -2,6 +2,9 @@
     "--template--": "This is the project name,",
     "--template--": "papavisor copies the defaults and overwrites them with the settings here.",
     "--template--": {
+        "enabled": "Whatever to enable this project, defaults to true.",
+        "enabled": false,
+
         "url": "Obviously overwrite the url from the defaults",
         "url": "http://127.0.0.1:9002/RPC2",
 
