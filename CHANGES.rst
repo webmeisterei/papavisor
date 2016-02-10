@@ -4,13 +4,15 @@ Changelog
 0.0.1a3 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Fix apapvisor config path detection.
+  [pcdummy]
 
 
 0.0.1a2 (2016-02-10)
 --------------------
 
 - Fix package installation, move config to ~/.config.
+  [pcdummy]
 
 - Add texttable for the status output and psutil for memory info.
   [pcdummy]

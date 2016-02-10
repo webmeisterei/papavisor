@@ -440,7 +440,8 @@ if __name__ == '__main__':
             if not os.path.exists(p):
                 shutil.copyfile(
                     resource_filename(
-                        Requirement.parse('papavisor'), 'config/%s' % f
+                        Requirement.parse('papavisor'),
+                        'papavisor/config/%s' % f
                     ),
                     os.path.join(config_path, f)
                 )

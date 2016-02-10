@@ -6,7 +6,14 @@
 # to papavisor.
 #
 
-source $HOME/.config/papavisor/apapavisor.sh
+if [ -d '/etc/papavisor' ]; then
+    source /etc/papavisor/apapavisor.sh
+elif [ -d '$HOME/.config/papavisor/' ]; then
+    source $HOME/.config/papavisor/apapavisor.sh
+else
+    $(/usr/bin/env papavisor 1>/dev/null 2>&1)
+    source $HOME/.config/papavisor/apapavisor.sh
+fi
 
 count=${#SEARCH_CFG[*]}
 index=0
