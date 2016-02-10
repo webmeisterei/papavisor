@@ -2,6 +2,8 @@
 """papavisor package."""
 
 import os
+import os.path
+import sys
 
 from setuptools import find_packages, setup
 
@@ -62,7 +64,7 @@ setup(
         'src/papavisor/scripts/apapavisor',
     ],
     data_files=[
-        ('/etc/papavisor', [
+        (os.path.join(sys.prefix, '/etc/papavisor'), [
                 'config/00_defaults.json',
                 'config/apapavisor.sh'
             ],

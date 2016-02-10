@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Use sys.prefix for config files.
+  [pcdummy]
+
 - Added support for connecting to 'unix://' sockets.
   [pcdummy]
 
