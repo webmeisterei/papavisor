@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from __future__ import print_function
 
 import asyncio
@@ -53,23 +54,32 @@ class SupervisorCtl(object):
 
         self._config = config
         self._groups = {}
-        self._services = {}
+        self._programs = {}
 
     @asyncio.coroutine
     def _get_status(self):
+        cfg_programs = self._config['programs']
+
         status = yield from self._rpcns.getAllProcessInfo()
-
-        services = {}
+        programs = {}
         for p in status:
-            services[p['name']] = p
+            pn = p['name']
+            if pn not in cfg_programs:
+                print(
+                    "%s\tERROR: Unknown service name %r" % (
+                        self._name, pn
+                    ),
+                    file=sys.stderr
+                )
+                continue
 
-        self._services = services
-        programs = self._config['programs']
+            programs[pn] = p
+            programs[pn]['startsecs'] = cfg_programs[pn].get('startsecs', 0)
 
         if not self._groups:
             groups = {}
-            for pn, pstatus in services.items():
-                if pn not in programs:
+            for pn, pstatus in programs.items():
+                if pn not in cfg_programs:
                     print(
                         "%s\tERROR: Unknown service name %r" % (
                             self._name, pn
@@ -78,63 +88,80 @@ class SupervisorCtl(object):
                     )
                     continue
 
-                sdefs = programs[pn]
+                sdefs = cfg_programs[pn]
                 for sgroup in sdefs['groups']:
                     if sgroup not in groups:
                         groups[sgroup] = {}
 
-                    groups[sgroup][pn] = {
-                        'type': sdefs['type'],
-                        'priority': sdefs['priority'],
-                        'status': pstatus['statename'],
-                        'uptime': pstatus['description'],
-                        'startsecs': sdefs.get('startsecs', 0),
-                    }
+                    groups[sgroup][pn] = sdefs['priority']
 
             for k, g in groups.items():
                 self._groups[k] = OrderedDict(
-                    sorted(g.items(), key=lambda p: p[1]['priority'])
+                    sorted(g.items(), key=lambda p: p[1])
                 )
 
-        else:
-            for sn, ss in services.items():
-                for group in self._groups.items():
-                    if sn in group:
-                        group['status'] = ss
+        self._programs = programs
 
     def close(self):
         if self._rpc is not None:
             self._rpc.close()
 
     @asyncio.coroutine
-    def stop(self, group):
+    def stop(self, group_or_program):
         """Stop the given group name. """
         yield from self._get_status()
 
-        if group not in self._groups:
-            raise ValueError("Unknown group %r" % group)
-
-        print("Stop group %r from project %r:" % (group, self._name))
-        for p in self._groups[group]:
-            status = self._groups[group][p]['status']
-            if status == 'RUNNING' or status == 'STARTING':
-                print("%s\tstop\t%s" % (self._name, p))
-                yield from self._rpcns.stopProcess(p)
+        if group_or_program in self._groups:
+            yield from self._stop_group(group_or_program)
+        elif group_or_program in self._programs:
+            yield from self._stop_program(group_or_program)
+        else:
+            raise ValueError("Unknown group or program %r" % group_or_program)
 
     @asyncio.coroutine
-    def start(self, group):
+    def _stop_program(self, p):
+        print("Stop program %r from project %r:" % (p, self._name))
+        status = self._programs[p]['statename']
+        if status == 'RUNNING' or status == 'STARTING':
+            print("%s\tstop\t%s" % (self._name, p))
+            yield from self._rpcns.stopProcess(p)
+
+    @asyncio.coroutine
+    def _stop_group(self, group):
+        print("Stop group %r from project %r:" % (group, self._name))
+        for p in self._groups[group]:
+            yield from self._stop_program(p)
+
+    @asyncio.coroutine
+    def start(self, group_or_program):
         """Start the given group name. """
         yield from self._get_status()
 
-        if group not in self._groups:
-            raise ValueError("Unknown group %r" % group)
+        if group_or_program in self._groups:
+            yield from self._start_group(group_or_program)
+        elif group_or_program in self._programs:
+            yield from self._start_program(group_or_program)
+        else:
+            raise ValueError("Unknown group or program %r" % group_or_program)
 
+    @asyncio.coroutine
+    def _start_group(self, group):
         print("Start group %r from project %r:" % (group, self._name))
         for p in self._groups[group]:
-            status = self._groups[group][p]['status']
-            if status == 'STOPPED' or status == 'STOPPING':
-                print("%s\tstart\t%s" % (self._name, p))
-                yield from self._rpcns.startProcess(p)
+            yield from self._start_program(p)
+
+    @asyncio.coroutine
+    def _start_program(self, p, force=False, check_or_block=False):
+        print("Start program %r from project %r:" % (p, self._name))
+        status = self._programs[p]['statename']
+        if force or status == 'STOPPED' or status == 'STOPPING':
+            print("%s\tstart\t%s" % (self._name, p))
+            yield from self._rpcns.startProcess(p)
+            if check_or_block:
+                st = self._programs[p]['startsecs']
+                if st > 0:
+                    print("%s\tsleep\t%s\t%d" % (self._name, p, st))
+                    yield from asyncio.sleep(st)
 
     @asyncio.coroutine
     def restart(self, group):
@@ -144,28 +171,23 @@ class SupervisorCtl(object):
         if group not in self._groups:
             raise ValueError("Unknown group %r" % group)
 
-        # check which services are running and select them
+        # check which programs are running and select them
         # for a restart.
         print("Restart group %r from project %r:" % (group, self._name))
 
         to_restart = []
-        for p, pdata in self._groups[group].items():
-            if pdata['status'].lower() == 'running':
+        for p in self._groups[group].keys():
+            pdata = self._programs[p]
+            if pdata['statename'] == 'RUNNING':
                 to_restart.append(p)
 
-        # Stop selected services
+        # Stop selected programs
         for p in to_restart:
-            print("%s\tstop\t%s" % (self._name, p))
-            yield from self._rpcns.stopProcess(p)
+            yield from self._stop_program(p)
 
         # and start them in reversed order again.
         for p in reversed(to_restart):
-            print("%s\tstart\t%s" % (self._name, p))
-            yield from self._rpcns.startProcess(p)
-            startsecs = self._groups[group][p]['startsecs']
-            if startsecs > 0:
-                print("%s\tsleep\t%d" % (self._name, startsecs))
-                yield from asyncio.sleep(startsecs)
+            yield from self._start_program(p, force=True, check_or_block=True)
 
     @asyncio.coroutine
     def status(self, group):
@@ -174,13 +196,13 @@ class SupervisorCtl(object):
         if group not in self._groups:
             raise ValueError("Unknown group %r" % group)
 
-        for p in reversed(self._groups[group]):
-            pdata = self._groups[group][p]
+        for p in self._groups[group].keys():
+            pdata = self._programs[p]
             print("%s\t%s\t%s\t%s" % (
                 self._name,
                 p + ' ' * (15 - len(p)),
-                pdata['status'],
-                pdata['uptime'])
+                pdata['statename'],
+                pdata['description'])
             )
 
 
@@ -226,16 +248,16 @@ def _run_task_async(config, action='restart', group='python'):
 
 
 def main(argv):
-    config_path = '/etc/papavisor'
+    config_path = os.path.join(
+        os.path.dirname(__file__),
+        os.path.pardir,
+        os.path.pardir,
+        os.path.pardir,
+        'config'
+    )
 
     if not os.path.exists(config_path):
-        config_path = os.path.join(
-            os.path.dirname(__file__),
-            os.path.pardir,
-            os.path.pardir,
-            os.path.pardir,
-            'config'
-        )
+        config_path = '/etc/papavisor'
 
     config = OrderedDict()
     parse_json_config(config_path, config)
@@ -277,6 +299,7 @@ def main(argv):
         projects = sys.argv[1].lower()
         to_run = {}
         for k in config.keys():
+            # use startswith so users can provide "half" project names.
             if k.startswith(projects):
                 to_run[k] = config[k]
 
@@ -284,7 +307,7 @@ def main(argv):
         return True
 
     action = 'status'  # default run status
-    if len(sys.argv) > 1 and sys.argv[2].lower() != action:
+    if len(sys.argv) > 2 and sys.argv[2].lower() != action:
         action = sys.argv[2].lower()
 
     group = 'all'  # default "group" all
