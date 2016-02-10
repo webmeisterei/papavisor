@@ -20,12 +20,9 @@ Requirements
 Install
 =======
 
-clone this repository and run ``sudo pip3 install .`` in it::
+papavisor is available over pypi::
 
-    $ git clone https://github.com/webmeisterei/papavisor.git
-    $ cd papavisor
-    $ sudo pip3 install .
-
+    $ pip3 install papavisor
 
 It will copy 2 config files to ``/etc/papavisor``
 
