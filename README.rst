@@ -20,7 +20,7 @@ Requirements
 Install
 =======
 
-papavisor is available over pypi::
+papavisor is available over `pypi <https://pypi.python.org/pypi/papavisor>`_::
 
     $ pip3 install papavisor
 

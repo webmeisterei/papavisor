@@ -223,6 +223,51 @@ def parse_json_config(directory_path, config_object):
         merge(config_object, tmp_cfg)
 
 
+def get_configobj_from_path(config_path):
+    config = OrderedDict()
+    parse_json_config(config_path, config)
+
+    service_defaults = config['__defaults__']
+    del config['__defaults__']
+
+    # env CONFIG_FILES for apapavisor
+    if 'CONFIG_FILES' in os.environ:  # and os.environ['CONFIG_FILES']:
+        files = os.environ['CONFIG_FILES'].rstrip(';').split(';')
+        try:
+            d = OrderedDict(
+                [f.split(':') for f in files]
+            )
+            for name, cfgfile in d.items():
+                if name in config:
+                    # Do not overwrite a manual configured entry.
+                    continue
+
+                parser = configparser.ConfigParser()
+                parser.read(cfgfile)
+                cfg_opts = {
+                    'url': parser['supervisorctl']['serverurl'],
+                    'user': parser['supervisorctl']['username'],
+                    'password': parser['supervisorctl']['password']
+                }
+
+                config[name] = cfg_opts
+        except ValueError:
+            if os.environ['CONFIG_FILES'] == '':
+                print(
+                    "apapavisor hasn't found any projects.",
+                    file=sys.stderr
+                )
+            else:
+                print(
+                    "ERROR: Wrong input form apapavisor: %r" % (
+                        os.environ['CONFIG_FILES'],
+                    ),
+                    file=sys.stderr
+                )
+
+    return config, service_defaults
+
+
 @asyncio.coroutine
 def _run_task_async(config, action='restart', group='python'):
     sctl = None
@@ -265,46 +310,7 @@ def main(project, action, group_or_program):
     if not os.path.exists(config_path):
         config_path = '/etc/papavisor'
 
-    config = OrderedDict()
-    parse_json_config(config_path, config)
-
-    service_defaults = config['__defaults__']
-    del config['__defaults__']
-
-    # env CONFIG_FILES for apapavisor
-    if 'CONFIG_FILES' in os.environ:  # and os.environ['CONFIG_FILES']:
-        files = os.environ['CONFIG_FILES'].rstrip(';').split(';')
-        try:
-            d = OrderedDict(
-                [f.split(':') for f in files]
-            )
-            for name, cfgfile in d.items():
-                if name in config:
-                    # Do not overwrite a manual configured entry.
-                    continue
-
-                parser = configparser.ConfigParser()
-                parser.read(cfgfile)
-                cfg_opts = {
-                    'url': parser['supervisorctl']['serverurl'],
-                    'user': parser['supervisorctl']['username'],
-                    'password': parser['supervisorctl']['password']
-                }
-
-                config[name] = cfg_opts
-        except ValueError:
-            if os.environ['CONFIG_FILES'] == '':
-                print(
-                    "apapavisor hasn't found any projects.",
-                    file=sys.stderr
-                )
-            else:
-                print(
-                    "ERROR: Wrong input form apapavisor: %r" % (
-                        os.environ['CONFIG_FILES'],
-                    ),
-                    file=sys.stderr
-                )
+    config, service_defaults = get_configobj_from_path(config_path)
 
     to_run = config  # default all projects
     if project != 'all':

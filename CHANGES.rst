@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Link pypi, cleanup main().
+  [pcdummy]
+
 - Use argparser and smaller bugfixes.
   [pcdummy]
 
