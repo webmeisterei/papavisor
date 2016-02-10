@@ -6,7 +6,7 @@
 # to papavisor.
 #
 
-source /etc/papavisor/apapavisor.sh
+source $HOME/.config/papavisor/apapavisor.sh
 
 count=${#SEARCH_CFG[*]}
 index=0

@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """papavisor package."""
 
 import os
 import os.path
-import sys
 
 from setuptools import find_packages, setup
 
@@ -59,19 +59,15 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
+    package_dir={'': 'src'},
     packages=find_packages(
+        'src/',
         exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
     ),
-    package_dir={'': 'src'},
+    package_data={'papavisor': ['config/*.json', 'config/*.sh']},
     scripts=[
         'src/papavisor/scripts/papavisor',
         'src/papavisor/scripts/apapavisor',
     ],
-    data_files=[
-        (os.path.join(sys.prefix, '/etc/papavisor'), [
-                'config/00_defaults.json',
-                'config/apapavisor.sh'
-            ],
-         ),
-    ],
 )
+

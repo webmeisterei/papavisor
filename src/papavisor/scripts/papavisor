@@ -10,8 +10,11 @@ import glob
 import json
 import os.path
 import re
+import shutil
 import sys
 from collections import OrderedDict
+
+from pkg_resources import Requirement, resource_filename
 
 import psutil
 from papavisor.aioxmlrpc_client import ProtocolError, ServerProxy
@@ -331,27 +334,18 @@ def _run_task_async(config, action='restart', group='python', table=None):
                 yield from sctl.status(group, table)
 
         except ProtocolError:
-            print('ERROR: %r can\'t connect.' % (
+            print('ERROR: can\'t connect to project %r.' % (
                 config['name']
             ))
         finally:
             sctl.close()
 
 
-def main(project, action, group_or_program):
-    config_path = os.path.join(
-        os.path.dirname(__file__),
-        os.path.pardir,
-        os.path.pardir,
-        os.path.pardir,
-        'config'
-    )
-
-    if not os.path.exists(config_path):
-        config_path = '/etc/papavisor'
-
+def main(config_path, project, action, group_or_program):
+    # Read config files
     config, service_defaults = get_configobj_from_path(config_path)
 
+    # Select projects
     to_run = config  # default all projects
     if project != 'all':
         projects = project.lower()
@@ -360,9 +354,6 @@ def main(project, action, group_or_program):
             # use startswith so users can provide "half" project names.
             if k.startswith(projects):
                 to_run[k] = config[k]
-
-    if not to_run:
-        return True
 
     # print('Running action %r on group %r' % (action, group))
 
@@ -432,4 +423,31 @@ if __name__ == '__main__':
     )
     options = parser.parse_args()
 
-    main(options.project, options.action, options.group_or_program)
+    config_path = '/etc/papavisor'
+    if not os.path.exists(config_path):
+        # Copy config files on first start.
+        config_path = os.path.join(
+            os.path.expanduser('~/.config'), 'papavisor'
+        )
+        if not os.path.exists(config_path):
+            os.makedirs(config_path, 0o700)
+
+        files_to_copy = [
+            '00_defaults.json', '01_template.json', 'apapavisor.sh'
+        ]
+        for f in files_to_copy:
+            p = os.path.join(config_path, f)
+            if not os.path.exists(p):
+                shutil.copyfile(
+                    resource_filename(
+                        Requirement.parse('papavisor'), 'config/%s' % f
+                    ),
+                    os.path.join(config_path, f)
+                )
+
+    main(
+        config_path,
+        options.project,
+        options.action,
+        options.group_or_program
+    )

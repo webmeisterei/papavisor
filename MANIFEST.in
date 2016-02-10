@@ -1,7 +1,6 @@
-recursive-include config *.json
-recursive-include config *.sh
-recursive-include src *
 include *
-exclude __pycache__
+recursive-include src *
+global-exclude __pycache__
 global-exclude *.pyc
 global-exclude *.sublime-*
+global-exclude *.egg-info

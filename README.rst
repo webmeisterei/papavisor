@@ -24,18 +24,12 @@ papavisor is available over `pypi <https://pypi.python.org/pypi/papavisor>`_::
 
     $ pip3 install papavisor
 
-It will copy 2 config files to ``/etc/papavisor``
-
-- **00_default.json** - The default config file for all supervisors
-- **01_template.json** - A Template with comments for a project.
-- **apapavisor.sh** - The config file for ``Auto Papavisor``
-
 
 Configuration
 =============
 
-All configuration files live in ``/etc/papavisor``, papavisor reads all **.json** files sorted and merges
-them into one big configuration OrderedDict.
+On the first start papavisor copies config files to ``~/.config/papavisor/`` if theres no ``/etc/papavisor`` directory.
+Papavisor reads all **.json** files sorted and merges them into one big configuration OrderedDict.
 
 **papavisor** files:
 

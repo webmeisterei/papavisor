@@ -4,6 +4,8 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Fix package installation, move config to ~/.config.
+
 - Add texttable for the status output and psutil for memory info.
   [pcdummy]
 
