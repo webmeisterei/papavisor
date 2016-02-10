@@ -4,6 +4,9 @@ Changelog
 0.0.1a2 (unreleased)
 --------------------
 
+- Use argparser and smaller bugfixes.
+  [pcdummy]
+
 - Use sys.prefix for config files.
   [pcdummy]
 

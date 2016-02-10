@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import argparse
 import asyncio
+import configparser
 import copy
 import glob
 import json
@@ -10,9 +12,8 @@ import os.path
 import re
 import sys
 from collections import OrderedDict
-import configparser
 
-from papavisor.aioxmlrpc_client import AioTransport, ProtocolError, ServerProxy
+from papavisor.aioxmlrpc_client import ProtocolError, ServerProxy
 
 STATUS_REGEX = re.compile('^([\w]+)\s+([\w]+)')
 
@@ -32,7 +33,6 @@ def merge(a, b, path=None):
                 pass  # same leaf value
             else:
                 a[key] = b[key]
-                # raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
         else:
             a[key] = b[key]
     return a
@@ -253,7 +253,7 @@ def _run_task_async(config, action='restart', group='python'):
             sctl.close()
 
 
-def main(argv):
+def main(project, action, group_or_program):
     config_path = os.path.join(
         os.path.dirname(__file__),
         os.path.pardir,
@@ -293,16 +293,22 @@ def main(argv):
 
                 config[name] = cfg_opts
         except ValueError:
-            print(
-                "ERROR: Wrong input form apapavisor: %r" % (
-                    os.environ['CONFIG_FILES'],
-                ),
-                file=sys.stderr
-            )
+            if os.environ['CONFIG_FILES'] == '':
+                print(
+                    "apapavisor hasn't found any projects.",
+                    file=sys.stderr
+                )
+            else:
+                print(
+                    "ERROR: Wrong input form apapavisor: %r" % (
+                        os.environ['CONFIG_FILES'],
+                    ),
+                    file=sys.stderr
+                )
 
     to_run = config  # default all projects
-    if len(sys.argv) > 1 and sys.argv[1].lower() != 'all':
-        projects = sys.argv[1].lower()
+    if project != 'all':
+        projects = project.lower()
         to_run = {}
         for k in config.keys():
             # use startswith so users can provide "half" project names.
@@ -312,17 +318,9 @@ def main(argv):
     if not to_run:
         return True
 
-    action = 'status'  # default run status
-    if len(sys.argv) > 2 and sys.argv[2].lower() != action:
-        action = sys.argv[2].lower()
-
-    group = 'all'  # default "group" all
-    if len(sys.argv) > 3 and sys.argv[3].lower() != group:
-        group = sys.argv[3].lower()
-
     # print('Running action %r on group %r' % (action, group))
 
-    tasks = []
+    projects = []
     for sname, sconfig in to_run.items():
 
         if 'enabled' in sconfig and not sconfig['enabled']:
@@ -341,14 +339,40 @@ def main(argv):
             del(local_config['types'])
 
         local_config['name'] = sname
-        tasks.append(asyncio.async(
-            _run_task_async(local_config, action, group)
+        projects.append(asyncio.async(
+            _run_task_async(local_config, action, group_or_program)
         ))
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.wait(tasks))
-    loop.stop()
+    if projects:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.wait(projects))
+        loop.stop()
+    else:
+        print("Project(s) %r not found." % project, file=sys.stderr)
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'project',
+        help="Project name, all or the startstring of a project",
+        nargs='?',
+        default="all"
+    )
+
+    parser.add_argument(
+        'action',
+        help="Action. status/start/stop/restart",
+        nargs='?',
+        default="status"
+    )
+
+    parser.add_argument(
+        'group_or_program',
+        help="Group or program to run the action on",
+        nargs='?',
+        default="all"
+    )
+    options = parser.parse_args()
+
+    main(options.project, options.action, options.group_or_program)
