@@ -12,6 +12,7 @@ import os.path
 import re
 import shutil
 import sys
+import time
 from collections import OrderedDict
 
 from pkg_resources import Requirement, resource_filename
@@ -32,7 +33,8 @@ def merge(a, b, path=None):
 
     for key in b:
         if key in a:
-            if isinstance(a[key], dict) and isinstance(b[key], dict):
+            if (isinstance(a[key], (dict, OrderedDict)) and
+                    isinstance(b[key], (dict, OrderedDict))):
                 merge(a[key], b[key], path + [str(key)])
             elif a[key] == b[key]:
                 pass  # same leaf value
@@ -81,6 +83,11 @@ class SupervisorCtl(object):
 
             programs[pn] = p
             programs[pn]['startsecs'] = cfg_programs[pn].get('startsecs', 0)
+            programs[pn]['tcp_check_port'] = cfg_programs[pn].get('tcp_check_port', 0)
+            programs[pn]['tcp_check_host'] = cfg_programs[pn].get('tcp_check_host', "127.0.0.1")
+            programs[pn]['tcp_check_timeout'] = cfg_programs[pn].get('tcp_check_timeout', 300)
+
+        self._programs_by_type = self._group_programs_by_type(programs)
 
         if not self._groups:
             groups = {}
@@ -125,10 +132,9 @@ class SupervisorCtl(object):
             raise ValueError("Unknown group or program %r" % group_or_program)
 
     @asyncio.coroutine
-    def _stop_program(self, p):
+    def _stop_program(self, p, force=False):
         print("Stop program %r from project %r:" % (p, self._name))
-        status = self._programs[p]['statename']
-        if status == 'RUNNING' or status == 'STARTING':
+        if force or self._p_is_running(p):
             print("%s\tstop\t%s" % (self._name, p))
             yield from self._rpcns.stopProcess(p)
 
@@ -159,13 +165,20 @@ class SupervisorCtl(object):
     @asyncio.coroutine
     def _start_program(self, p, force=False, check_or_block=False):
         print("Start program %r from project %r:" % (p, self._name))
-        status = self._programs[p]['statename']
-        if force or status == 'STOPPED' or status == 'STOPPING':
+        if force or self._p_is_stopped(p):
             print("%s\tstart\t%s" % (self._name, p))
             yield from self._rpcns.startProcess(p)
             if check_or_block:
-                st = self._programs[p]['startsecs']
-                if st > 0:
+                pdefs = self._programs[p]
+                st = pdefs.get('startsecs', 0)
+                cp = pdefs.get('tcp_check_port', 0)
+                if cp > 0:
+                    print("%s\ttcp_check\t%s\t%d" % (self._name, p, cp))
+                    try:
+                        yield from self._tcp_check(p)
+                    except OSError as e:
+                        print("ERROR: %s" % e)
+                elif st > 0:
                     print("%s\tsleep\t%s\t%d" % (self._name, p, st))
                     yield from asyncio.sleep(st)
 
@@ -177,23 +190,76 @@ class SupervisorCtl(object):
         if group not in self._groups:
             raise ValueError("Unknown group %r" % group)
 
+        start_extra = False
+        if group in self._config.get('groups', {}):
+            start_extra = self._config['groups'][group] \
+                .get('start_extra', False)
+
         # check which programs are running and select them
         # for a restart.
-        print("Restart group %r from project %r:" % (group, self._name))
-
         to_restart = []
         for p in self._groups[group].keys():
-            pdata = self._programs[p]
-            if pdata['statename'] == 'RUNNING':
+            if self._p_is_running(p):
                 to_restart.append(p)
 
-        # Stop selected programs
-        for p in to_restart:
-            yield from self._stop_program(p)
+        if start_extra:
+            print(
+                ("Restart group %r from project %r"
+                 " with options (start_extra: %r)") % (
+                    group, self._name,
+                    start_extra
+                ))
 
-        # and start them in reversed order again.
-        for p in reversed(to_restart):
-            yield from self._start_program(p, force=True, check_or_block=True)
+            to_stop = []
+            ptg = self._group_programs_by_type(to_restart)
+
+            if start_extra:
+                for t, t_programs in ptg.items():
+                    if (len(t_programs) < 2 and
+                            len(self._programs_by_type[t]) > 1):
+
+                        avail = set(self._programs_by_type[t]) \
+                            .difference(t_programs)
+                        if avail:
+                            additional = avail.pop()
+                            to_stop.append(additional)
+                            yield from self._start_program(
+                                additional,
+                                force=True,
+                                check_or_block=True)
+
+            # Stop selected programs
+            for p in to_restart:
+                if self._p_is_running(p):
+                    yield from self._stop_program(p)
+
+            # and start them in reversed order again.
+            for p in reversed(to_restart):
+                yield from self._start_program(
+                    p,
+                    force=True,
+                    check_or_block=True
+                )
+
+            # now stop "temporary" instances
+            for p in to_stop:
+                yield from self._stop_program(p, force=True)
+
+        else:
+            print("Restart group %r from project %r:" % (group, self._name))
+
+            # Stop selected programs
+            for p in to_restart:
+                if self._p_is_running(p):
+                    yield from self._stop_program(p)
+
+            # and start them in reversed order again.
+            for p in reversed(to_restart):
+                yield from self._start_program(
+                    p,
+                    force=True,
+                    check_or_block=True
+                )
 
     @asyncio.coroutine
     def status(self, group, texttable=None):
@@ -209,7 +275,7 @@ class SupervisorCtl(object):
             mem_rss = ''
             uptime = ''
 
-            if pdata['statename'] == 'RUNNING':
+            if self._p_is_running(p):
                 desc_match = DESCRIPTION_REGEX.match(pdata['description'])
                 if desc_match:
                     pid = desc_match.group(1)
@@ -242,6 +308,46 @@ class SupervisorCtl(object):
                     uptime,
                     mem_rss,
                 ])
+
+    def _p_is_running(self, p):
+        return self._programs[p]['statename'] == 'RUNNING' or \
+            self._programs[p]['statename'] == 'STARTING'
+
+    def _p_is_stopped(self, p):
+        return self._programs[p]['statename'] == 'STOPPED' or \
+            self._programs[p]['statename'] == 'STOPPING'
+
+    def _group_programs_by_type(self, programs):
+        cfg_programs = self._config['programs']
+        programs_by_type = {}
+        for p in programs:
+            p_type = cfg_programs[p]['type']
+            if p_type not in programs_by_type:
+                programs_by_type[p_type] = []
+            programs_by_type[p_type].append(p)
+
+        return programs_by_type
+
+    @asyncio.coroutine
+    def _tcp_check(self, program):
+        pdefs = self._programs[program]
+        host = pdefs.get('tcp_check_host')
+        port = pdefs.get('tcp_check_port')
+        timeout = pdefs.get('tcp_check_timeout')
+
+        time_start = time.time()
+        while True:
+            try:
+                yield from asyncio.open_connection(host, port)
+                return
+            except OSError:
+                if time_start + timeout <= time.time():
+                    raise OSError(
+                        "Failed to connect to (%r, %r), timeout occurred." % (
+                            host, port
+                        )
+                    )
+                yield from asyncio.sleep(1)
 
 
 def get_configobj_from_path(config_path):
@@ -359,24 +465,24 @@ def main(config_path, project, action, group_or_program):
 
     texttable = Texttable()
     projects = []
-    for sname, sconfig in to_run.items():
+    for pname, pconfig in to_run.items():
 
-        if 'enabled' in sconfig and not sconfig['enabled']:
+        if 'enabled' in pconfig and not pconfig['enabled']:
             continue
 
         project_config = copy.deepcopy(service_defaults)
-        merge(project_config, sconfig)
+        merge(project_config, pconfig)
 
-        if 'types' in project_config:
-            for tk, tv in project_config['types'].items():
-                for pk, pv in project_config['programs'].items():
-                    if pv['type'] == tk:
-                        for tvk, tvv in tv.items():
-                            pv[tvk] = tvv
+        for tk, tv in project_config.get('types', {}).items():
+            tk = tk.lower()
+            for pk, pv in project_config['programs'].items():
+                if pv['type'].lower() == tk:
+                    for tvk, tvv in tv.items():
+                        pv[tvk] = tvv
 
             del(project_config['types'])
 
-        project_config['name'] = sname
+        project_config['name'] = pname
 
         projects.append(asyncio.async(
             _run_task_async(

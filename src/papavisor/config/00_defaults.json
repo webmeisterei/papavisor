@@ -7,8 +7,8 @@
 
         "groups": {
             "zopes": {
-                "ensure_one_running": "This ensures that one program of the same type is always running on `restart`.",
-                "ensure_one_running": true
+                "start_extra": "Start a second instance on restarts.",
+                "start_extra": true
             }
         },
 
@@ -27,7 +27,7 @@
                 "type": "memmon",
                 "groups": "A list of groups to assign this program to.",
                 "groups": ["zope1", "all"],
-                "priority": "Lowest get stopped first and will be started first.",
+                "priority": "Lowest get stopped first and will be started last.",
                 "priority": 1
             },
             "MemmonZope2": {

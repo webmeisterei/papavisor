@@ -4,6 +4,9 @@ Changelog
 0.0.1a4 (unreleased)
 --------------------
 
+- Add TCP Check and start_extra.
+  [pcdummy]
+
 - Reverse the priority on start.
   [pcdummy]
 
