@@ -5,14 +5,13 @@ XML-RPC Client with asyncio.
 This module adapt the ``xmlrpc.client`` module of the standard library to
 work with asyncio.
 
-Original (BSD) source: https://github.com/mardiros/aioxmlrpc/blob/master/aioxmlrpc/client.py
+Original (BSD) source: https://github.com/mardiros/aioxmlrpc/blob/master/aioxmlrpc/client.py  # noqa
 """
 from __future__ import print_function
 
 import asyncio
 import base64
 import logging
-import socket
 from xmlrpc import client as xmlrpc
 
 import aiohttp
@@ -75,10 +74,10 @@ class AioTransport(xmlrpc.Transport):
         This method is a coroutine.
         """
         headers = {'User-Agent': self.user_agent,
-                   #Proxy-Connection': 'Keep-Alive',
-                   #'Content-Range': 'bytes oxy1.0/-1',
+                   # Proxy-Connection': 'Keep-Alive',
+                   # 'Content-Range': 'bytes oxy1.0/-1',
                    'Accept': 'text/xml',
-                   'Content-Type': 'text/xml' }
+                   'Content-Type': 'text/xml'}
 
         # basic auth
         if self._username is not None and self._password is not None:
@@ -142,7 +141,7 @@ class ServerProxy(xmlrpc.ServerProxy):
 
     def __init__(self, uri, *, username=None, password=None,
                  transport=None, encoding=None, verbose=False,
-                 allow_none=False, use_datetime=False,use_builtin_types=False,
+                 allow_none=False, use_datetime=False, use_builtin_types=False,
                  loop=None):
         self._loop = loop or asyncio.get_event_loop()
         if not transport:
@@ -161,8 +160,12 @@ class ServerProxy(xmlrpc.ServerProxy):
     @asyncio.coroutine
     def __request(self, methodname, params):
         # call a method on the remote server
-        request = xmlrpc.dumps(params, methodname, encoding=self.__encoding,
-                               allow_none=self.__allow_none).encode(self.__encoding)
+        request = xmlrpc.dumps(
+            params,
+            methodname,
+            encoding=self.__encoding,
+            allow_none=self.__allow_none
+        ).encode(self.__encoding)
 
         response = yield from self.__transport.request(
             self.__host,
