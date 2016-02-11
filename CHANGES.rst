@@ -4,7 +4,8 @@ Changelog
 0.0.1a4 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Reverse the priority on start.
+  [pcdummy]
 
 
 0.0.1a3 (2016-02-11)

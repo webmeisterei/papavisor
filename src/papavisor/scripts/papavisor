@@ -153,7 +153,7 @@ class SupervisorCtl(object):
     @asyncio.coroutine
     def _start_group(self, group):
         print("Start group %r from project %r:" % (group, self._name))
-        for p in self._groups[group]:
+        for p in reversed(self._groups[group]):
             yield from self._start_program(p)
 
     @asyncio.coroutine

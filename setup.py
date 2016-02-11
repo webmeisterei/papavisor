@@ -23,7 +23,7 @@ setup(
     name="papavisor",
     version='0.0.1a4.dev0',
     author="Webmeisterei GmbH",
-    maintainer="ReneĂÂ´ Jochum",
+    maintainer="Rene Jochum",
     maintainer_email="rene@webmeisterei.com",
     author_email="rene@webmeisterei.com",
     url="https://github.com/webmeisterei/papavisor",
