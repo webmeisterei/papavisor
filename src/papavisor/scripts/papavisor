@@ -83,9 +83,12 @@ class SupervisorCtl(object):
 
             programs[pn] = p
             programs[pn]['startsecs'] = cfg_programs[pn].get('startsecs', 0)
-            programs[pn]['tcp_check_port'] = cfg_programs[pn].get('tcp_check_port', 0)
-            programs[pn]['tcp_check_host'] = cfg_programs[pn].get('tcp_check_host', "127.0.0.1")
-            programs[pn]['tcp_check_timeout'] = cfg_programs[pn].get('tcp_check_timeout', 300)
+            programs[pn]['tcp_check_port'] = \
+                cfg_programs[pn].get('tcp_check_port', 0)
+            programs[pn]['tcp_check_host'] = \
+                cfg_programs[pn].get('tcp_check_host', "127.0.0.1")
+            programs[pn]['tcp_check_timeout'] = \
+                cfg_programs[pn].get('tcp_check_timeout', 300)
 
         self._programs_by_type = self._group_programs_by_type(programs)
 
@@ -538,18 +541,18 @@ if __name__ == '__main__':
         if not os.path.exists(config_path):
             os.makedirs(config_path, 0o700)
 
-        files_to_copy = [
-            '00_defaults.json', '01_template.json', 'apapavisor.sh'
-        ]
-        for f in files_to_copy:
-            p = os.path.join(config_path, f)
-            if not os.path.exists(p):
-                shutil.copyfile(
-                    resource_filename(
-                        Requirement.parse('papavisor'),
-                        'papavisor/config/%s' % f
-                    ),
-                    os.path.join(config_path, f)
+    files_to_copy = [
+        '00_defaults.json', '01_template.json', 'apapavisor.sh'
+    ]
+    for f in files_to_copy:
+        p = os.path.join(config_path, f)
+        if not os.path.exists(p):
+            shutil.copyfile(
+                resource_filename(
+                    Requirement.parse('papavisor'),
+                    'papavisor/config/%s' % f
+                ),
+                os.path.join(config_path, f)
                 )
 
     main(
