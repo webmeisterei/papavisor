@@ -1,8 +1,8 @@
 Changelog
 =========
 
-0.0.1a4 (unreleased)
---------------------
+0.1.0 (2016-02-14)
+------------------
 
 - Also wait on TCP Check if startsecs have been given.
   [pcdummy]
