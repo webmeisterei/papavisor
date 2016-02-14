@@ -178,7 +178,7 @@ class SupervisorCtl(object):
                         yield from self._tcp_check(p)
                     except OSError as e:
                         print("ERROR: %s" % e)
-                elif st > 0:
+                if st > 0:
                     print("%s\tsleep\t%s\t%d" % (self._name, p, st))
                     yield from asyncio.sleep(st)
 

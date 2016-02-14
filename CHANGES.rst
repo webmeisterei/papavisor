@@ -4,6 +4,9 @@ Changelog
 0.0.1a4 (unreleased)
 --------------------
 
+- Also wait on TCP Check if startsecs have been given.
+  [pcdummy]
+
 - Add TCP Check and start_extra.
   [pcdummy]
 
